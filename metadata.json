@@ -1,0 +1,6 @@
+{
+  "name": "Maison Éloise",
+  "description": "Artisan neighbourhood bakery and coffee shop crafting slow-fermented sourdough, all-butter croissants, celebration cakes, and morning bakes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
