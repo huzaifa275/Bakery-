@@ -1,13 +1,35 @@
 import React, { useState } from 'react';
 import { useBakery } from '../../context/BakeryContext';
-import { Search, PackageCheck, Clock, MapPin, Truck, CheckCircle2, AlertCircle, Printer, ArrowRight } from 'lucide-react';
+import { 
+  Search, 
+  PackageCheck, 
+  Clock, 
+  MapPin, 
+  Truck, 
+  CheckCircle2, 
+  AlertCircle, 
+  Printer, 
+  ArrowRight,
+  Star,
+  MessageSquare,
+  ShieldCheck
+} from 'lucide-react';
 import { Order } from '../../types';
 
 export const OrderTrackingView: React.FC = () => {
-  const { currentOrder, orders, branches, addToast, setActiveView } = useBakery();
+  const { currentOrder, orders, branches, addToast, setActiveView, submitReview } = useBakery();
   const [searchOrderNumber, setSearchOrderNumber] = useState('');
   const [searchedOrder, setSearchedOrder] = useState<Order | null>(currentOrder || (orders.length > 0 ? orders[0] : null));
   const [hasSearched, setHasSearched] = useState(false);
+
+  // Review Form State
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewAuthor, setReviewAuthor] = useState('');
+  const [reviewTitle, setReviewTitle] = useState('');
+  const [reviewComment, setReviewComment] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,10 +41,41 @@ export const OrderTrackingView: React.FC = () => {
 
     if (found) {
       setSearchedOrder(found);
+      setShowReviewForm(false);
+      setReviewSubmitted(false);
       addToast(`Order ${found.orderNumber} located`, 'info');
     } else {
       setSearchedOrder(null);
       addToast(`No order found matching ${searchOrderNumber}`, 'error');
+    }
+  };
+
+  const handleTrackedReviewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const authorName = reviewAuthor.trim() || searchedOrder?.customer?.fullName || (searchedOrder?.customer as any)?.name || 'Valued Guest';
+    if (!reviewComment.trim()) {
+      addToast('Please write your review comment', 'error');
+      return;
+    }
+
+    setIsSubmittingReview(true);
+    const firstItem = searchedOrder?.items?.[0];
+
+    const result = await submitReview({
+      author: authorName,
+      city: 'Lyon',
+      rating: reviewRating,
+      title: reviewTitle.trim(),
+      comment: reviewComment.trim(),
+      productName: firstItem ? firstItem.product?.name : undefined,
+      productId: firstItem ? firstItem.productId : undefined,
+      orderNumber: searchedOrder?.orderNumber,
+      orderId: searchedOrder?.id
+    });
+
+    setIsSubmittingReview(false);
+    if (result.success) {
+      setReviewSubmitted(true);
     }
   };
 
@@ -215,15 +268,134 @@ export const OrderTrackingView: React.FC = () => {
             </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              onClick={() => window.print()}
-              className="bg-[#EFE8DD] hover:bg-[#E5DACD] text-[#1F1A16] px-5 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider flex items-center gap-2 border border-[#DCD1C4]"
-            >
-              <Printer className="w-4 h-4" />
-              <span>Print Official Receipt</span>
-            </button>
+          {/* Actions & Customer Review */}
+          <div className="space-y-4 pt-2">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setShowReviewForm(!showReviewForm)}
+                className="bg-[#1F1A16] hover:bg-[#2C241E] text-[#FAF7F2] px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm transition-colors cursor-pointer"
+              >
+                <MessageSquare className="w-4 h-4 text-[#C49258]" />
+                <span>{showReviewForm ? 'Hide Review Form' : 'Leave a Review for This Order'}</span>
+              </button>
+
+              <button
+                onClick={() => window.print()}
+                className="bg-[#EFE8DD] hover:bg-[#E5DACD] text-[#1F1A16] px-5 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider flex items-center gap-2 border border-[#DCD1C4] cursor-pointer"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Print Official Receipt</span>
+              </button>
+            </div>
+
+            {/* Embedded Review Form */}
+            {showReviewForm && (
+              <div className="bg-[#FAF7F2] p-6 rounded-2xl border border-[#E8DFD5] space-y-4">
+                <div className="flex items-center justify-between border-b border-[#E8DFD5] pb-3">
+                  <div>
+                    <h5 className="font-display text-base font-bold text-[#1F1A16]">
+                      Review Order #{searchedOrder.orderNumber}
+                    </h5>
+                    <p className="text-xs text-[#7A6E65]">
+                      Your review will be verified with this order and submitted for moderation.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 text-xs font-semibold">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Verified Order</span>
+                  </div>
+                </div>
+
+                {reviewSubmitted ? (
+                  <div className="bg-white p-5 rounded-xl border border-emerald-200 text-center space-y-2">
+                    <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto">
+                      <CheckCircle2 className="w-5 h-5" />
+                    </div>
+                    <strong className="text-sm text-[#1F1A16] block font-bold">Review Received!</strong>
+                    <p className="text-xs text-[#7A6E65]">
+                      Thank you for your valuable feedback. It will be published as soon as it is approved by our bakery team.
+                    </p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleTrackedReviewSubmit} className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase text-[#7A6E65] mb-1">
+                          Your Name
+                        </label>
+                        <input
+                          type="text"
+                          value={reviewAuthor}
+                          onChange={(e) => setReviewAuthor(e.target.value)}
+                          placeholder={searchedOrder.customer.fullName || 'Guest Name'}
+                          className="w-full bg-[#FFFFFF] border border-[#DCD1C4] rounded-xl px-3 py-2 text-xs text-[#1F1A16] focus:outline-none focus:border-[#C49258]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase text-[#7A6E65] mb-1">
+                          Rating (1–5 Stars)
+                        </label>
+                        <div className="flex gap-1.5">
+                          {[1, 2, 3, 4, 5].map((num) => (
+                            <button
+                              key={num}
+                              type="button"
+                              onClick={() => setReviewRating(num)}
+                              className={`flex-1 py-1.5 rounded-lg border text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                                reviewRating >= num
+                                  ? 'bg-amber-400 border-amber-500 text-[#1F1A16]'
+                                  : 'bg-[#FFFFFF] border-[#DCD1C4] text-[#7A6E65]'
+                              }`}
+                            >
+                              <Star className={`w-3 h-3 ${reviewRating >= num ? 'fill-[#1F1A16]' : ''}`} />
+                              <span>{num}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-[#7A6E65] mb-1">
+                        Review Title (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={reviewTitle}
+                        onChange={(e) => setReviewTitle(e.target.value)}
+                        placeholder="e.g. Excellent sourdough loaf!"
+                        className="w-full bg-[#FFFFFF] border border-[#DCD1C4] rounded-xl px-3 py-2 text-xs text-[#1F1A16] focus:outline-none focus:border-[#C49258]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-[#7A6E65] mb-1">
+                        Your Feedback *
+                      </label>
+                      <textarea
+                        value={reviewComment}
+                        onChange={(e) => setReviewComment(e.target.value)}
+                        placeholder="How was the flavor, crust, pickup or delivery experience?"
+                        rows={3}
+                        required
+                        className="w-full bg-[#FFFFFF] border border-[#DCD1C4] rounded-xl px-3 py-2 text-xs text-[#1F1A16] focus:outline-none focus:border-[#C49258]"
+                      />
+                    </div>
+
+                    <div className="flex justify-end pt-1">
+                      <button
+                        type="submit"
+                        disabled={isSubmittingReview}
+                        className="bg-[#1F1A16] hover:bg-[#2C241E] text-[#FAF7F2] px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider disabled:opacity-50 cursor-pointer"
+                      >
+                        {isSubmittingReview ? 'Submitting...' : 'Submit Verified Review'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            )}
           </div>
 
         </div>

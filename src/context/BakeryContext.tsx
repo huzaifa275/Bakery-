@@ -70,6 +70,25 @@ interface BakeryContextType {
   setCategories: React.Dispatch<React.SetStateAction<CategoryItem[]>>;
   branches: BakeryBranch[];
   reviews: CustomerReview[];
+  setReviews: React.Dispatch<React.SetStateAction<CustomerReview[]>>;
+  refreshReviews: () => Promise<void>;
+  submitReview: (reviewData: {
+    author: string;
+    city?: string;
+    rating: number;
+    title?: string;
+    comment: string;
+    productName?: string;
+    productId?: string;
+    orderId?: string;
+    orderNumber?: string;
+  }) => Promise<{ success: boolean; message: string; review?: CustomerReview }>;
+  approveReview: (id: string) => Promise<boolean>;
+  rejectReview: (id: string) => Promise<boolean>;
+  toggleFeatureReview: (id: string) => Promise<boolean>;
+  updateReview: (id: string, updatedData: Partial<CustomerReview>) => Promise<boolean>;
+  deleteReview: (id: string) => Promise<boolean>;
+  voteHelpfulReview: (id: string) => Promise<void>;
   coupons: Coupon[];
   setCoupons: React.Dispatch<React.SetStateAction<Coupon[]>>;
   storeContent: StoreContent;
@@ -406,6 +425,180 @@ export const BakeryProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, []);
 
+  const refreshReviews = useCallback(async () => {
+    try {
+      const url = adminToken ? '/api/reviews?all=true' : '/api/reviews';
+      const res = await fetch(url, {
+        headers: adminToken ? { 'Authorization': `Bearer ${adminToken}` } : {},
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setReviews(data);
+        }
+      }
+    } catch (err) {
+      console.warn('Reviews fetch error:', err);
+    }
+  }, [adminToken]);
+
+  const submitReview = async (reviewData: {
+    author: string;
+    city?: string;
+    rating: number;
+    title?: string;
+    comment: string;
+    productName?: string;
+    productId?: string;
+    orderId?: string;
+    orderNumber?: string;
+  }): Promise<{ success: boolean; message: string; review?: CustomerReview }> => {
+    try {
+      const res = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(reviewData),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        addToast(data.message || 'Merci! Your review has been submitted for moderation.', 'success');
+        refreshReviews();
+        return { success: true, message: data.message, review: data.review };
+      } else {
+        const errMsg = data.error || 'Unable to submit review.';
+        addToast(errMsg, 'error');
+        return { success: false, message: errMsg };
+      }
+    } catch (err) {
+      const errMsg = 'Network error while submitting review.';
+      addToast(errMsg, 'error');
+      return { success: false, message: errMsg };
+    }
+  };
+
+  const approveReview = async (id: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/reviews/${id}/approve`, {
+        method: 'PATCH',
+        headers: {
+          ...(adminToken ? { 'Authorization': `Bearer ${adminToken}` } : {})
+        }
+      });
+      if (res.ok) {
+        setReviews(prev => prev.map(r => r.id === id ? { ...r, isApproved: true, status: 'approved' } : r));
+        addToast('Review approved & published publicly', 'success');
+        return true;
+      }
+    } catch (err) {
+      console.warn('Failed to approve review:', err);
+    }
+    setReviews(prev => prev.map(r => r.id === id ? { ...r, isApproved: true, status: 'approved' } : r));
+    addToast('Review approved', 'success');
+    return true;
+  };
+
+  const rejectReview = async (id: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/reviews/${id}/reject`, {
+        method: 'PATCH',
+        headers: {
+          ...(adminToken ? { 'Authorization': `Bearer ${adminToken}` } : {})
+        }
+      });
+      if (res.ok) {
+        setReviews(prev => prev.map(r => r.id === id ? { ...r, isApproved: false, status: 'rejected' } : r));
+        addToast('Review rejected', 'info');
+        return true;
+      }
+    } catch (err) {
+      console.warn('Failed to reject review:', err);
+    }
+    setReviews(prev => prev.map(r => r.id === id ? { ...r, isApproved: false, status: 'rejected' } : r));
+    addToast('Review rejected', 'info');
+    return true;
+  };
+
+  const toggleFeatureReview = async (id: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/reviews/${id}/feature`, {
+        method: 'PATCH',
+        headers: {
+          ...(adminToken ? { 'Authorization': `Bearer ${adminToken}` } : {})
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setReviews(prev => prev.map(r => r.id === id ? { ...r, isFeatured: data.review?.isFeatured ?? !r.isFeatured } : r));
+        addToast('Review featured status updated', 'success');
+        return true;
+      }
+    } catch (err) {
+      console.warn('Failed to toggle feature status:', err);
+    }
+    setReviews(prev => prev.map(r => r.id === id ? { ...r, isFeatured: !r.isFeatured } : r));
+    return true;
+  };
+
+  const updateReview = async (id: string, updatedData: Partial<CustomerReview>): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/reviews/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(adminToken ? { 'Authorization': `Bearer ${adminToken}` } : {})
+        },
+        body: JSON.stringify(updatedData),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.review) {
+          setReviews(prev => prev.map(r => r.id === id ? { ...r, ...data.review } : r));
+        }
+        addToast('Review updated successfully', 'success');
+        return true;
+      }
+    } catch (err) {
+      console.warn('Failed to update review:', err);
+    }
+    setReviews(prev => prev.map(r => r.id === id ? { ...r, ...updatedData } : r));
+    addToast('Review updated', 'success');
+    return true;
+  };
+
+  const deleteReview = async (id: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/reviews/${id}`, {
+        method: 'DELETE',
+        headers: {
+          ...(adminToken ? { 'Authorization': `Bearer ${adminToken}` } : {})
+        }
+      });
+      if (res.ok) {
+        setReviews(prev => prev.filter(r => r.id !== id));
+        addToast('Review deleted from database', 'info');
+        return true;
+      }
+    } catch (err) {
+      console.warn('Failed to delete review:', err);
+    }
+    setReviews(prev => prev.filter(r => r.id !== id));
+    addToast('Review deleted', 'info');
+    return true;
+  };
+
+  const voteHelpfulReview = async (id: string) => {
+    try {
+      const res = await fetch(`/api/reviews/${id}/helpful`, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        setReviews(prev => prev.map(r => r.id === id ? { ...r, helpfulVotes: data.helpfulVotes } : r));
+        addToast('Thank you for your feedback!', 'success');
+      }
+    } catch {
+      setReviews(prev => prev.map(r => r.id === id ? { ...r, helpfulVotes: (r.helpfulVotes || 0) + 1 } : r));
+    }
+  };
+
   const refreshCoupons = useCallback(async () => {
     try {
       const res = await fetch('/api/coupons');
@@ -479,9 +672,10 @@ export const BakeryProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     refreshProducts();
     refreshCategories();
     refreshOrders();
+    refreshReviews();
     refreshCoupons();
     refreshStoreContent();
-  }, [refreshProducts, refreshCategories, refreshOrders, refreshCoupons, refreshStoreContent]);
+  }, [refreshProducts, refreshCategories, refreshOrders, refreshReviews, refreshCoupons, refreshStoreContent]);
 
   // Scroll to top on view changes
   useEffect(() => {
@@ -660,6 +854,15 @@ export const BakeryProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setCategories,
         branches,
         reviews,
+        setReviews,
+        refreshReviews,
+        submitReview,
+        approveReview,
+        rejectReview,
+        toggleFeatureReview,
+        updateReview,
+        deleteReview,
+        voteHelpfulReview,
         coupons,
         setCoupons,
         storeContent,

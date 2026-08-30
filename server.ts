@@ -608,38 +608,127 @@ async function startServer() {
     res.json({ success: true, cakeRequest: cakeReq });
   });
 
-  // Reviews
+  // Reviews API with Genuine Customer Moderation & Verification
   app.get('/api/reviews', (req: Request, res: Response) => {
-    res.json(db.reviews);
+    const showAll = req.query.all === 'true';
+    const authHeader = req.headers.authorization;
+    const isAdmin = authHeader && db.adminTokens.has(authHeader.replace('Bearer ', '').trim());
+
+    if (showAll || isAdmin) {
+      return res.json(db.reviews);
+    }
+    // Public only receives strictly approved reviews
+    const approvedReviews = db.reviews.filter(r => r.isApproved === true || r.status === 'approved');
+    res.json(approvedReviews);
+  });
+
+  app.get('/api/admin/reviews/stats', (req: Request, res: Response) => {
+    const totalReviews = db.reviews.length;
+    const pendingReviews = db.reviews.filter(r => r.status === 'pending' || (!r.isApproved && r.status !== 'rejected')).length;
+    const approvedReviewsList = db.reviews.filter(r => r.isApproved === true || r.status === 'approved');
+    const approvedReviews = approvedReviewsList.length;
+    const rejectedReviews = db.reviews.filter(r => r.status === 'rejected').length;
+    
+    // Average rating calculated STRICTLY from genuine approved reviews
+    const sumRatings = approvedReviewsList.reduce((acc, r) => acc + (Number(r.rating) || 0), 0);
+    const averageRating = approvedReviews > 0 ? Number((sumRatings / approvedReviews).toFixed(2)) : 0;
+
+    const ratingDistribution: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    approvedReviewsList.forEach(r => {
+      const rounded = Math.min(5, Math.max(1, Math.round(r.rating)));
+      ratingDistribution[rounded] = (ratingDistribution[rounded] || 0) + 1;
+    });
+
+    const verifiedCount = approvedReviewsList.filter(r => r.isVerifiedPurchase).length;
+
+    res.json({
+      totalReviews,
+      pendingReviews,
+      approvedReviews,
+      rejectedReviews,
+      averageRating,
+      ratingDistribution,
+      verifiedCount,
+    });
   });
 
   app.post('/api/reviews', (req: Request, res: Response) => {
-    const { author, city, rating, title, comment, productName, productId } = req.body;
+    const { 
+      author, 
+      city, 
+      rating, 
+      title, 
+      comment, 
+      productName, 
+      productId, 
+      orderId, 
+      orderNumber 
+    } = req.body;
+
     if (!author || !rating || !comment) {
-      return res.status(400).json({ error: 'Author, rating, and review text are required.' });
+      return res.status(400).json({ error: 'Customer name, star rating (1–5), and written review are required.' });
     }
+
+    const parsedRating = Math.min(5, Math.max(1, Number(rating) || 5));
+
+    // Verify against real database orders
+    let isVerifiedPurchase = false;
+    let matchedOrderNumber: string | undefined = undefined;
+    let matchedOrderId: string | undefined = undefined;
+
+    if (orderNumber || orderId) {
+      const searchRef = String(orderNumber || orderId || '').trim().toUpperCase();
+      const matchedOrder = db.orders.find(o => 
+        o.orderNumber.toUpperCase() === searchRef || 
+        o.id.toUpperCase() === searchRef
+      );
+      if (matchedOrder) {
+        isVerifiedPurchase = true;
+        matchedOrderNumber = matchedOrder.orderNumber;
+        matchedOrderId = matchedOrder.id;
+      }
+    }
+
     const newRev: CustomerReview = {
-      id: `rev-${Date.now()}`,
-      author,
-      city: city || 'Verified Guest',
-      rating: Number(rating),
-      title: title || 'Exceptional Experience',
-      comment,
-      productName: productName || 'Artisan Selection',
-      productId,
+      id: `rev-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      orderId: matchedOrderId,
+      orderNumber: matchedOrderNumber || (orderNumber ? String(orderNumber).trim() : undefined),
+      author: String(author).trim(),
+      city: String(city || 'Customer').trim(),
+      rating: parsedRating,
+      title: title ? String(title).trim() : 'Customer Feedback',
+      comment: String(comment).trim(),
+      productName: productName ? String(productName).trim() : undefined,
+      productId: productId ? String(productId).trim() : undefined,
       date: new Date().toISOString().split('T')[0],
-      isVerifiedPurchase: true,
+      isVerifiedPurchase,
       isFeatured: false,
-      isApproved: true,
+      isApproved: false, // New reviews MUST start as Pending moderation
+      status: 'pending',
+      helpfulVotes: 0,
     };
+
     db.reviews.unshift(newRev);
-    res.status(201).json({ success: true, review: newRev });
+    res.status(201).json({ 
+      success: true, 
+      message: 'Thank you! Your review has been submitted and is currently pending review before appearing publicly.', 
+      review: newRev 
+    });
   });
 
   app.patch('/api/reviews/:id/approve', (req: Request, res: Response) => {
     const rev = db.reviews.find(r => r.id === req.params.id);
     if (!rev) return res.status(404).json({ error: 'Review not found' });
-    rev.isApproved = !rev.isApproved;
+    rev.isApproved = true;
+    rev.status = 'approved';
+    res.json({ success: true, review: rev });
+  });
+
+  app.patch('/api/reviews/:id/reject', (req: Request, res: Response) => {
+    const rev = db.reviews.find(r => r.id === req.params.id);
+    if (!rev) return res.status(404).json({ error: 'Review not found' });
+    rev.isApproved = false;
+    rev.status = 'rejected';
     res.json({ success: true, review: rev });
   });
 
@@ -648,6 +737,49 @@ async function startServer() {
     if (!rev) return res.status(404).json({ error: 'Review not found' });
     rev.isFeatured = !rev.isFeatured;
     res.json({ success: true, review: rev });
+  });
+
+  app.put('/api/reviews/:id', (req: Request, res: Response) => {
+    const rev = db.reviews.find(r => r.id === req.params.id);
+    if (!rev) return res.status(404).json({ error: 'Review not found' });
+
+    const { author, city, rating, title, comment, productName, isVerifiedPurchase, isApproved, status, isFeatured, adminNotes } = req.body;
+    
+    if (author !== undefined) rev.author = String(author).trim();
+    if (city !== undefined) rev.city = String(city).trim();
+    if (rating !== undefined) rev.rating = Math.min(5, Math.max(1, Number(rating)));
+    if (title !== undefined) rev.title = String(title).trim();
+    if (comment !== undefined) rev.comment = String(comment).trim();
+    if (productName !== undefined) rev.productName = String(productName).trim();
+    if (isVerifiedPurchase !== undefined) rev.isVerifiedPurchase = Boolean(isVerifiedPurchase);
+    if (isFeatured !== undefined) rev.isFeatured = Boolean(isFeatured);
+    if (adminNotes !== undefined) rev.adminNotes = String(adminNotes);
+    
+    if (status !== undefined) {
+      rev.status = status;
+      rev.isApproved = status === 'approved';
+    } else if (isApproved !== undefined) {
+      rev.isApproved = Boolean(isApproved);
+      rev.status = rev.isApproved ? 'approved' : 'rejected';
+    }
+
+    res.json({ success: true, review: rev });
+  });
+
+  app.delete('/api/reviews/:id', (req: Request, res: Response) => {
+    const index = db.reviews.findIndex(r => r.id === req.params.id);
+    if (index === -1) {
+      return res.status(404).json({ error: 'Review not found' });
+    }
+    db.reviews.splice(index, 1);
+    res.json({ success: true, message: 'Review deleted successfully' });
+  });
+
+  app.post('/api/reviews/:id/helpful', (req: Request, res: Response) => {
+    const rev = db.reviews.find(r => r.id === req.params.id);
+    if (!rev) return res.status(404).json({ error: 'Review not found' });
+    rev.helpfulVotes = (rev.helpfulVotes || 0) + 1;
+    res.json({ success: true, helpfulVotes: rev.helpfulVotes });
   });
 
   // Event inquiries & wedding catering

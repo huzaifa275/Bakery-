@@ -612,6 +612,7 @@ export const INITIAL_COUPONS: Coupon[] = [
 export const INITIAL_REVIEWS: CustomerReview[] = [
   {
     id: 'rev-1',
+    orderNumber: 'MSH-8942',
     author: 'Sophie M.',
     city: 'Lyon',
     rating: 5,
@@ -621,10 +622,12 @@ export const INITIAL_REVIEWS: CustomerReview[] = [
     isVerifiedPurchase: true,
     isFeatured: true,
     isApproved: true,
+    status: 'approved',
     productName: 'Butter Croissant',
   },
   {
     id: 'rev-2',
+    orderNumber: 'MSH-8943',
     author: 'Lucas D.',
     city: 'Lyon',
     rating: 5,
@@ -634,6 +637,7 @@ export const INITIAL_REVIEWS: CustomerReview[] = [
     isVerifiedPurchase: true,
     isFeatured: true,
     isApproved: true,
+    status: 'approved',
     productName: 'Sourdough Loaf',
   },
   {
@@ -647,6 +651,7 @@ export const INITIAL_REVIEWS: CustomerReview[] = [
     isVerifiedPurchase: true,
     isFeatured: true,
     isApproved: true,
+    status: 'approved',
     productName: 'Custom Celebration Cake',
   },
   {
@@ -660,6 +665,7 @@ export const INITIAL_REVIEWS: CustomerReview[] = [
     isVerifiedPurchase: true,
     isFeatured: true,
     isApproved: true,
+    status: 'approved',
     productName: 'Cinnamon Bun',
   }
 ];

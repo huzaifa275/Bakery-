@@ -16,7 +16,8 @@ import {
   ExternalLink,
   ChevronRight,
   User,
-  Sliders
+  Sliders,
+  MessageSquare
 } from 'lucide-react';
 import { AdminLogin } from './AdminLogin';
 import { AdminOverview } from './AdminOverview';
@@ -27,12 +28,14 @@ import { AdminCustomCakes } from './AdminCustomCakes';
 import { AdminCoupons } from './AdminCoupons';
 import { AdminContentCMS } from './AdminContentCMS';
 import { AdminQuickStock } from './AdminQuickStock';
+import { AdminReviews } from './AdminReviews';
 
 type AdminTab = 
   | 'overview' 
+  | 'orders'
+  | 'reviews'
   | 'products' 
   | 'categories' 
-  | 'orders' 
   | 'cakes' 
   | 'coupons' 
   | 'quick-stock' 
@@ -46,7 +49,8 @@ export const AdminDashboard: React.FC = () => {
     setActiveView, 
     orders, 
     products, 
-    categories 
+    categories,
+    reviews
   } = useBakery();
 
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
@@ -57,10 +61,12 @@ export const AdminDashboard: React.FC = () => {
   }
 
   const pendingOrdersCount = orders.filter(o => o.status === 'pending' || o.status === 'confirmed').length;
+  const pendingReviewsCount = reviews.filter(r => r.status === 'pending' || (!r.isApproved && r.status !== 'rejected')).length;
 
   const NAV_ITEMS: { id: AdminTab; label: string; icon: React.FC<{ className?: string }>; badge?: number | string }[] = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'orders', label: 'Orders & Fulfillment', icon: ShoppingBag, badge: pendingOrdersCount > 0 ? pendingOrdersCount : undefined },
+    { id: 'reviews', label: 'Customer Reviews', icon: MessageSquare, badge: pendingReviewsCount > 0 ? `${pendingReviewsCount} new` : reviews.length },
     { id: 'quick-stock', label: 'Morning Stock Shift', icon: Sun },
     { id: 'products', label: 'Product Catalog', icon: Package, badge: products.length },
     { id: 'categories', label: 'Menu Categories', icon: Layers, badge: categories.length },
@@ -226,6 +232,7 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'overview' && (
               <AdminOverview onNavigateTab={(tab) => setActiveTab(tab)} />
             )}
+            {activeTab === 'reviews' && <AdminReviews />}
             {activeTab === 'products' && <AdminProducts />}
             {activeTab === 'categories' && <AdminCategories />}
             {activeTab === 'orders' && <AdminOrders />}

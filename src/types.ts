@@ -166,8 +166,12 @@ export interface Coupon {
   description: string;
 }
 
+export type ReviewStatus = 'pending' | 'approved' | 'rejected';
+
 export type CustomerReview = {
   id: string;
+  orderId?: string;
+  orderNumber?: string;
   productId?: string;
   productName?: string;
   author: string;
@@ -179,6 +183,9 @@ export type CustomerReview = {
   isVerifiedPurchase: boolean;
   isFeatured?: boolean;
   isApproved: boolean;
+  status?: ReviewStatus;
+  adminNotes?: string;
+  helpfulVotes?: number;
 };
 
 export type Review = CustomerReview;

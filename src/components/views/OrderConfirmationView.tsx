@@ -16,7 +16,12 @@ import {
   Search,
   Sparkles,
   Info,
-  ChevronRight
+  ChevronRight,
+  Star,
+  MessageSquare,
+  ShieldCheck,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import { Order } from '../../types';
 
@@ -27,6 +32,7 @@ export const OrderConfirmationView: React.FC = () => {
     branches, 
     setActiveView, 
     navigateToMenuWithSearch,
+    submitReview,
     addToast 
   } = useBakery();
 
@@ -34,6 +40,45 @@ export const OrderConfirmationView: React.FC = () => {
 
   // Fallback to most recent order if lastCompletedOrder is not directly in state
   const activeOrder: Order | null = lastCompletedOrder || (orders.length > 0 ? orders[0] : null);
+
+  // Review Form State for Order Completion
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewAuthor, setReviewAuthor] = useState(activeOrder?.customer?.fullName || '');
+  const [reviewTitle, setReviewTitle] = useState('');
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewCity, setReviewCity] = useState(activeOrder?.pickupBranchId ? 'Lyon' : 'Lyon');
+  const [isReviewSubmitting, setIsReviewSubmitting] = useState(false);
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  const [reviewFeedbackMessage, setReviewFeedbackMessage] = useState('');
+
+  const handleOrderReviewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reviewAuthor.trim() || !reviewComment.trim()) {
+      addToast('Please enter your name and review', 'error');
+      return;
+    }
+
+    setIsReviewSubmitting(true);
+    const firstItem = activeOrder?.items?.[0];
+
+    const result = await submitReview({
+      author: reviewAuthor.trim(),
+      city: reviewCity.trim() || 'Lyon',
+      rating: reviewRating,
+      title: reviewTitle.trim(),
+      comment: reviewComment.trim(),
+      productName: firstItem ? firstItem.product?.name : undefined,
+      productId: firstItem ? firstItem.product?.id : undefined,
+      orderNumber: activeOrder?.orderNumber,
+      orderId: activeOrder?.id
+    });
+
+    setIsReviewSubmitting(false);
+    if (result.success) {
+      setReviewSubmitted(true);
+      setReviewFeedbackMessage(result.message);
+    }
+  };
 
   const handleCopyReference = (ref: string) => {
     if (!ref) return;
@@ -630,6 +675,130 @@ export const OrderConfirmationView: React.FC = () => {
 
           </div>
 
+        </div>
+
+        {/* ================================================================= */}
+        {/* CUSTOMER REVIEW & RATING SECTION */}
+        {/* ================================================================= */}
+        <div 
+          id="order-review-box"
+          className="bg-[#FAF7F2] rounded-3xl border border-[#E8DFD5] p-6 sm:p-8 space-y-6 shadow-xs"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E8DFD5] pb-4">
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#C49258]/15 border border-[#C49258]/30 text-[#A87438] text-[10px] uppercase tracking-widest font-bold">
+                <MessageSquare className="w-3.5 h-3.5 text-[#C49258]" />
+                <span>Guest Experience Feedback</span>
+              </div>
+              <h3 className="font-display text-xl sm:text-2xl font-bold text-[#1F1A16]">
+                How Was Your Experience With Maison Éloise?
+              </h3>
+              <p className="text-xs text-[#7A6E65]">
+                Leave a rating and review for Order <strong className="font-mono text-[#1F1A16]">#{activeOrder?.orderNumber}</strong>. Your feedback is stored in our bakery registry and earns a Verified Purchase badge!
+              </p>
+            </div>
+
+            <div className="flex items-center gap-1.5 text-blue-700 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200 text-xs font-semibold shrink-0">
+              <ShieldCheck className="w-4 h-4" />
+              <span>Verified Purchase Review</span>
+            </div>
+          </div>
+
+          {reviewSubmitted ? (
+            <div className="bg-[#FFFFFF] p-6 rounded-2xl border border-emerald-200 text-center space-y-3">
+              <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <h4 className="font-display text-lg font-bold text-[#1F1A16]">
+                Thank you for your review!
+              </h4>
+              <p className="text-xs text-[#7A6E65] max-w-md mx-auto leading-relaxed">
+                {reviewFeedbackMessage || 'Your review has been submitted to the atelier moderators and will be published to the public reviews section once approved.'}
+              </p>
+            </div>
+          ) : (
+            <form onSubmit={handleOrderReviewSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-[#7A6E65] mb-1">
+                    Customer Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={reviewAuthor}
+                    onChange={(e) => setReviewAuthor(e.target.value)}
+                    placeholder="Your name"
+                    required
+                    className="w-full bg-[#FFFFFF] border border-[#DCD1C4] rounded-xl px-3.5 py-2.5 text-xs text-[#1F1A16] focus:outline-none focus:border-[#C49258]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-[#7A6E65] mb-1">
+                    Star Rating (1–5) *
+                  </label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((num) => (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() => setReviewRating(num)}
+                        className={`flex-1 py-2 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                          reviewRating >= num
+                            ? 'bg-amber-400 border-amber-500 text-[#1F1A16] shadow-xs'
+                            : 'bg-[#FFFFFF] border-[#DCD1C4] text-[#7A6E65] hover:border-[#C49258]'
+                        }`}
+                      >
+                        <Star className={`w-3.5 h-3.5 ${reviewRating >= num ? 'fill-[#1F1A16]' : ''}`} />
+                        <span>{num}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-[#7A6E65] mb-1">
+                  Review Headline (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={reviewTitle}
+                  onChange={(e) => setReviewTitle(e.target.value)}
+                  placeholder="e.g. Delicious morning croissant and prompt collection!"
+                  className="w-full bg-[#FFFFFF] border border-[#DCD1C4] rounded-xl px-3.5 py-2 text-xs text-[#1F1A16] focus:outline-none focus:border-[#C49258]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-[#7A6E65] mb-1">
+                  Written Review *
+                </label>
+                <textarea
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder="Share details regarding the freshness of the bake, ordering experience, and packaging..."
+                  rows={3}
+                  required
+                  className="w-full bg-[#FFFFFF] border border-[#DCD1C4] rounded-xl px-3.5 py-2 text-xs text-[#1F1A16] focus:outline-none focus:border-[#C49258]"
+                />
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+                <span className="text-[11px] text-[#7A6E65]">
+                  Stored in live bakery database. New submissions are pending moderation before public display.
+                </span>
+
+                <button
+                  type="submit"
+                  disabled={isReviewSubmitting}
+                  className="w-full sm:w-auto bg-[#1F1A16] hover:bg-[#2C241E] text-[#FAF7F2] px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+                >
+                  {isReviewSubmitting ? 'Submitting...' : 'Submit Order Review'}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
 
         {/* ================================================================= */}

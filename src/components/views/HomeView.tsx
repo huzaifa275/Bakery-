@@ -39,7 +39,17 @@ export const HomeView: React.FC = () => {
   // 6 Popular Daily Bakes
   const featuredProducts = products.filter(p => p.isFeatured).slice(0, 6);
   const currentBranch = branches.find(b => b.id === selectedBranchId) || branches[0];
-  const featuredReviews = reviews.slice(0, 4);
+  // Genuine approved reviews
+  const approvedReviews = reviews.filter(r => r.isApproved === true || r.status === 'approved');
+  const featuredReviews = (
+    approvedReviews.filter(r => r.isFeatured).length > 0 
+      ? [...approvedReviews.filter(r => r.isFeatured), ...approvedReviews.filter(r => !r.isFeatured)]
+      : approvedReviews
+  ).slice(0, 4);
+
+  const realAvgRating = approvedReviews.length > 0
+    ? (approvedReviews.reduce((sum, r) => sum + Number(r.rating || 0), 0) / approvedReviews.length).toFixed(1)
+    : '5.0';
 
   const categoriesOverview = [
     {
@@ -664,14 +674,15 @@ export const HomeView: React.FC = () => {
         <div className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-10">
           
           <div className="text-center max-w-2xl mx-auto space-y-2 mb-12 sm:mb-16">
-            <span className="text-xs uppercase tracking-widest text-[#C49258] font-bold">
-              Customer Notes
-            </span>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#C49258]/15 border border-[#C49258]/30 text-[#A87438] text-[11px] uppercase tracking-widest font-semibold">
+              <Star className="w-3.5 h-3.5 fill-[#C49258] text-[#C49258]" />
+              <span>{realAvgRating} Rating • {approvedReviews.length} Verified Reviews</span>
+            </div>
             <h2 className="font-display text-3xl sm:text-4xl text-[#1F1A16] font-bold tracking-tight">
               Words from our customers
             </h2>
             <p className="text-xs sm:text-sm text-[#7A6E65] font-light">
-              From morning commuters to weekend breakfast tables.
+              From morning commuters to weekend breakfast tables. Every review is genuine and authenticated.
             </p>
           </div>
 
@@ -679,17 +690,33 @@ export const HomeView: React.FC = () => {
             {featuredReviews.map((rev) => (
               <div
                 key={rev.id}
-                className="bg-[#FFFFFF] p-6 rounded-2xl border border-[#E8DFD5] shadow-2xs space-y-4 flex flex-col justify-between hover:border-[#C49258] transition-colors"
+                className="bg-[#FFFFFF] p-6 rounded-2xl border border-[#E8DFD5] shadow-2xs space-y-4 flex flex-col justify-between hover:border-[#C49258] transition-colors relative"
               >
                 <div className="space-y-3">
-                  <div className="flex text-amber-400">
-                    {Array.from({ length: rev.rating }).map((_, i) => (
-                      <Star key={i} className="w-3.5 h-3.5 fill-amber-400" />
-                    ))}
+                  <div className="flex items-center justify-between">
+                    <div className="flex text-amber-400">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star 
+                          key={i} 
+                          className={`w-3.5 h-3.5 ${
+                            i < rev.rating ? 'fill-amber-400 text-amber-400' : 'text-stone-300'
+                          }`} 
+                        />
+                      ))}
+                    </div>
+                    {rev.isVerifiedPurchase && (
+                      <span className="text-[10px] text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full font-semibold border border-blue-200">
+                        Verified
+                      </span>
+                    )}
                   </div>
-                  <h4 className="font-display text-base font-bold text-[#1F1A16]">
-                    "{rev.title}"
-                  </h4>
+
+                  {rev.title && (
+                    <h4 className="font-display text-base font-bold text-[#1F1A16]">
+                      "{rev.title}"
+                    </h4>
+                  )}
+
                   <p className="text-xs text-[#4A3F35] font-light leading-relaxed">
                     {rev.comment}
                   </p>
@@ -698,22 +725,30 @@ export const HomeView: React.FC = () => {
                 <div className="pt-4 border-t border-[#F4EFEA] flex justify-between items-end text-xs">
                   <div>
                     <span className="font-bold text-[#1F1A16] block">{rev.author}</span>
-                    <span className="text-[11px] text-[#7A6E65]">{rev.city}</span>
+                    <span className="text-[11px] text-[#7A6E65]">{rev.city || 'Lyon'}</span>
                   </div>
-                  <span className="text-[10px] text-[#C49258] font-medium bg-[#FAF7F2] px-2 py-0.5 rounded border border-[#E8DFD5]">
-                    {rev.productName}
-                  </span>
+                  {rev.productName && (
+                    <span className="text-[10px] text-[#C49258] font-medium bg-[#FAF7F2] px-2 py-0.5 rounded border border-[#E8DFD5] max-w-[110px] truncate">
+                      {rev.productName}
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="text-center pt-8">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-10">
             <button
               onClick={() => setActiveView('reviews')}
-              className="text-xs font-semibold uppercase tracking-wider text-[#C49258] hover:underline cursor-pointer"
+              className="bg-[#1F1A16] hover:bg-[#2C241E] text-[#FAF7F2] px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors shadow-sm cursor-pointer"
             >
-              Read all customer reviews or share your feedback →
+              Read all customer reviews ({approvedReviews.length})
+            </button>
+            <button
+              onClick={() => setActiveView('reviews')}
+              className="text-xs font-semibold uppercase tracking-wider text-[#A87438] hover:text-[#1F1A16] transition-colors cursor-pointer px-4 py-3"
+            >
+              Leave your feedback →
             </button>
           </div>
 

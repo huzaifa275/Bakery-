@@ -12,16 +12,18 @@ import {
   DollarSign,
   Calendar,
   Layers,
-  ChevronRight
+  ChevronRight,
+  MessageSquare,
+  Star
 } from 'lucide-react';
 import { Order } from '../../types';
 
 interface AdminOverviewProps {
-  onNavigateTab: (tab: 'products' | 'categories' | 'orders' | 'cakes' | 'coupons' | 'cms' | 'quick-stock') => void;
+  onNavigateTab: (tab: 'products' | 'categories' | 'orders' | 'cakes' | 'coupons' | 'cms' | 'quick-stock' | 'reviews') => void;
 }
 
 export const AdminOverview: React.FC<AdminOverviewProps> = ({ onNavigateTab }) => {
-  const { products, orders, categories, setOrders, addToast } = useBakery();
+  const { products, orders, categories, reviews, setOrders, addToast } = useBakery();
 
   // Metrics
   const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
@@ -29,6 +31,12 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({ onNavigateTab }) =
   const preparingOrders = orders.filter(o => o.status === 'preparing');
   const completedOrders = orders.filter(o => o.status === 'completed' || o.status === 'ready');
   const outOfStockProducts = products.filter(p => !p.isAvailable);
+
+  const pendingReviews = reviews.filter(r => r.status === 'pending' || (!r.isApproved && r.status !== 'rejected'));
+  const approvedReviews = reviews.filter(r => r.isApproved === true || r.status === 'approved');
+  const avgRating = approvedReviews.length > 0
+    ? (approvedReviews.reduce((sum, r) => sum + r.rating, 0) / approvedReviews.length).toFixed(1)
+    : '5.0';
 
   const todayStr = new Date().toISOString().split('T')[0];
   const todaysOrders = orders.filter(o => o.createdAt?.startsWith(todayStr) || o.deliveryDate === todayStr);
@@ -161,7 +169,31 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({ onNavigateTab }) =
         </div>
       </div>
 
-      {/* Out of stock alert box if any */}
+      {/* Pending Reviews Moderation Alert */}
+      {pendingReviews.length > 0 && (
+        <div className="bg-amber-50/80 border border-amber-300 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-200 text-amber-900 flex items-center justify-center flex-shrink-0">
+              <MessageSquare className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-amber-950 uppercase tracking-wider flex items-center gap-2">
+                <span>{pendingReviews.length} Customer Review{pendingReviews.length > 1 ? 's' : ''} Awaiting Moderation</span>
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+              </h4>
+              <p className="text-xs text-amber-800">
+                New feedback submitted by guests with verified orders. Review, approve, or format before publishing.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => onNavigateTab('reviews')}
+            className="bg-amber-900 hover:bg-amber-950 text-white text-xs font-bold uppercase tracking-wider px-4 py-2 rounded-xl transition-colors whitespace-nowrap cursor-pointer shadow-xs"
+          >
+            Moderate Reviews
+          </button>
+        </div>
+      )}
       {outOfStockProducts.length > 0 && (
         <div className="bg-[#FFF9F2] border border-[#F6E05E] p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
