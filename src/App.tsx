@@ -3,6 +3,7 @@ import { BakeryProvider, useBakery } from './context/BakeryContext';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { ToastContainer } from './components/common/ToastContainer';
+import { Toaster } from 'react-hot-toast';
 import { CartDrawer } from './components/cart/CartDrawer';
 import { WishlistDrawer } from './components/wishlist/WishlistDrawer';
 import { CheckoutModal } from './components/cart/CheckoutModal';
@@ -77,9 +78,21 @@ const MainContent: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FDFBF7] text-[#1F1A16] font-sans antialiased selection:bg-[#C49258]/30 selection:text-[#1F1A16]">
+    <div className="min-h-screen flex flex-col bg-[#FDFBF7] text-[#1E1511] font-sans antialiased selection:bg-[#C86D51]/30 selection:text-[#1E1511]">
       {/* Toast Notifications */}
       <ToastContainer />
+      <Toaster 
+        position="bottom-right"
+        toastOptions={{
+          style: {
+            background: '#1E1511',
+            color: '#FDFBF7',
+            border: '1px solid rgba(212, 163, 115, 0.25)',
+            fontSize: '13px',
+            borderRadius: '12px',
+          },
+        }}
+      />
 
       {/* Global Modals & Drawers */}
       <CartDrawer />

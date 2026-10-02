@@ -2,19 +2,20 @@
 
 @layer base {
   :root {
-    --font-serif: 'Cormorant Garamond', serif;
+    --font-serif: 'Cormorant Garamond', Georgia, serif;
     --font-display: 'Playfair Display', Georgia, serif;
     --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
   }
 
   body {
     font-family: var(--font-sans);
-    background-color: #FAF7F2;
-    color: #2C241E;
+    background-color: #FDFBF7;
+    color: #1E1511;
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
 
-  h1, h2, h3, .font-display {
+  h1, h2, h3, h4, .font-display {
     font-family: var(--font-display);
   }
 
@@ -23,20 +24,49 @@
   }
 }
 
+/* Subtle paper and flour grain overlay effect */
+.bg-flour-texture {
+  background-image: radial-gradient(circle at 50% 0%, rgba(212, 163, 115, 0.08) 0%, transparent 60%),
+                    radial-gradient(circle at 100% 100%, rgba(200, 109, 81, 0.05) 0%, transparent 50%);
+}
+
+.bg-espresso-glow {
+  background-image: radial-gradient(circle at 50% 10%, rgba(212, 163, 115, 0.12) 0%, transparent 65%);
+}
+
 /* Custom subtle scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #FAF7F2;
+  background: #FDFBF7;
 }
 ::-webkit-scrollbar-thumb {
   background: #D8CEBE;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #C49258;
+  background: #C86D51;
+}
+
+/* Nav link underline animated expanding from left to right */
+.nav-link-hover {
+  position: relative;
+}
+.nav-link-hover::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 1.5px;
+  background-color: #C86D51;
+  transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.nav-link-hover:hover::after,
+.nav-link-hover.active::after {
+  width: 100%;
 }
 
 @keyframes pulse-subtle {
@@ -47,3 +77,4 @@
 .animate-pulse-subtle {
   animation: pulse-subtle 3s ease-in-out infinite;
 }
+

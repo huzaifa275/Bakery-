@@ -13,6 +13,7 @@ import {
   ArrowUpDown
 } from 'lucide-react';
 import { ProductCategory, DietaryTag } from '../../types';
+import { ProductCard } from '../product/ProductCard';
 
 export const MenuView: React.FC = () => {
   const {
@@ -239,115 +240,9 @@ export const MenuView: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredProducts.map(product => {
-            const isFavorited = wishlist.includes(product.id);
-
-            return (
-              <div
-                key={product.id}
-                className="bg-[#FFFFFF] rounded-2xl border border-[#E8DFD5] overflow-hidden shadow-2xs hover:shadow-md transition-all group flex flex-col justify-between"
-              >
-                {/* Image Section */}
-                <div className="relative aspect-4/3 overflow-hidden bg-[#F4EFEA]">
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-
-                  {/* Top Badges */}
-                  <div className="absolute top-2.5 left-2.5 flex flex-col gap-1">
-                    {product.frenchName && (
-                      <span className="bg-[#1F1A16]/85 backdrop-blur-xs text-[#E6C594] text-[9px] uppercase font-bold tracking-widest px-2 py-0.5 rounded">
-                        {product.frenchName}
-                      </span>
-                    )}
-                    {product.isSeasonal && (
-                      <span className="bg-[#C49258] text-[#1F1A16] text-[9px] uppercase font-bold tracking-widest px-2 py-0.5 rounded">
-                        Seasonal
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Floating Action Buttons */}
-                  <button
-                    onClick={() => toggleWishlist(product.id)}
-                    className="absolute top-2.5 right-2.5 p-2 rounded-full bg-[#FAF7F2]/90 backdrop-blur-xs text-[#7A6E65] hover:text-rose-600 shadow-sm transition-colors"
-                    aria-label="Save to favorites"
-                  >
-                    <Heart className={`w-3.5 h-3.5 ${isFavorited ? 'text-rose-500 fill-rose-500' : ''}`} />
-                  </button>
-
-                  <button
-                    onClick={() => openProductModal(product.id)}
-                    className="absolute bottom-2.5 right-2.5 p-1.5 rounded-lg bg-[#1F1A16]/80 backdrop-blur-xs text-[#FAF7F2] hover:bg-[#1F1A16] shadow-sm transition-colors text-[10px] flex items-center gap-1 opacity-0 group-hover:opacity-100"
-                    title="Quick inspect"
-                  >
-                    <Eye className="w-3 h-3" />
-                    <span>Details</span>
-                  </button>
-                </div>
-
-                {/* Content Section */}
-                <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="uppercase text-[9px] font-bold text-[#7A6E65] bg-[#F4EFEA] px-2 py-0.5 rounded">
-                        {product.category}
-                      </span>
-                      <div className="flex items-center gap-1 text-amber-500 font-bold text-[11px]">
-                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                        <span>{product.rating.toFixed(1)}</span>
-                      </div>
-                    </div>
-
-                    <h3 
-                      onClick={() => openProductModal(product.id)}
-                      className="font-display text-base font-bold text-[#1F1A16] group-hover:text-[#C49258] transition-colors cursor-pointer leading-snug"
-                    >
-                      {product.name}
-                    </h3>
-
-                    <p className="text-xs text-[#7A6E65] font-light line-clamp-2">
-                      {product.shortDescription}
-                    </p>
-
-                    {/* Dietary Tags */}
-                    <div className="flex flex-wrap gap-1 pt-1">
-                      {product.dietary.slice(0, 2).map(d => (
-                        <span key={d} className="text-[10px] bg-[#FAF7F2] text-[#4A3F35] px-1.5 py-0.5 rounded border border-[#E8DFD5]">
-                          {d}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Price & Action */}
-                  <div className="pt-2 border-t border-[#F4EFEA] flex items-center justify-between">
-                    <div>
-                      <span className="font-display text-lg font-bold text-[#1F1A16]">
-                        €{product.price.toFixed(2)}
-                      </span>
-                      {product.variants && product.variants.length > 0 && (
-                        <span className="text-[10px] text-[#7A6E65] block">
-                          Options available
-                        </span>
-                      )}
-                    </div>
-
-                    <button
-                      onClick={() => addToCart(product, undefined, undefined, 1)}
-                      disabled={!product.isAvailable}
-                      className="bg-[#1F1A16] hover:bg-[#2C241E] text-[#FAF7F2] px-3.5 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-2xs group/btn disabled:opacity-50"
-                    >
-                      <ShoppingBag className="w-3.5 h-3.5 text-[#C49258] group-hover/btn:rotate-12 transition-transform" />
-                      <span>{product.isAvailable ? 'Add' : 'Sold Out'}</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {filteredProducts.map(product => (
+            <ProductCard key={product.id} product={product} />
+          ))}
         </div>
       )}
 
